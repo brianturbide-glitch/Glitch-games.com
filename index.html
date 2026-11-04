@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Games.com — Football Rush</title>
+<meta name="description" content="Play Football Rush, a free original arcade football game on Games.com.">
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0b1220;color:#f8fafc;font-family:Arial,Helvetica,sans-serif}
+header{padding:22px 16px;text-align:center;background:#101c30;border-bottom:3px solid #38bdf8}
+h1{margin:0;font-size:clamp(30px,6vw,48px);letter-spacing:1px}h1 span{color:#38bdf8}
+header p{margin:7px 0 0;color:#cbd5e1}
+main{width:min(900px,94%);margin:22px auto}
+.scoreboard{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:12px}
+.stat{background:#17243a;padding:12px;border-radius:12px;text-align:center}
+.stat small{display:block;color:#aebbd0;font-weight:bold;font-size:11px;letter-spacing:.7px}
+.stat strong{display:block;font-size:28px;margin-top:4px}
+.status{text-align:center;font-weight:bold;margin:10px}
+.field{border:3px solid #d1d5db;border-radius:12px;overflow:hidden;background:#176b36}
+canvas{width:100%;height:auto;display:block;touch-action:none}
+.actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:14px 0}
+button{border:0;border-radius:10px;padding:12px 18px;background:#2563eb;color:white;font-size:15px;font-weight:bold;cursor:pointer}
+button.secondary{background:#475569}button:focus-visible{outline:3px solid #facc15;outline-offset:3px}
+#notice{text-align:center;min-height:24px;font-weight:bold;margin:12px 0}
+.controls{background:#17243a;border-radius:12px;padding:14px;text-align:center}
+.pad{display:grid;grid-template-columns:repeat(3,58px);gap:7px;justify-content:center;margin:10px auto}
+.pad button{padding:12px;background:#334155;touch-action:none}
+.hint{color:#cbd5e1;font-size:13px;margin:7px 0}
+footer{text-align:center;color:#94a3b8;font-size:12px;padding:18px}
+</style>
+</head>
+<body>
+<header><h1>GAMES<span>.COM</span></h1><p>Your home for free games</p></header>
+<main>
+  <h2>🏈 Football Rush</h2>
+  <p>Run to the top end zone, avoid the defenders, and score as many touchdowns as you can in 60 seconds.</p>
+  <section class="scoreboard" aria-label="Game score">
+    <div class="stat"><small>TOUCHDOWNS</small><strong id="td">0</strong></div>
+    <div class="stat"><small>TIME LEFT</small><strong id="clock">60</strong></div>
+    <div class="stat"><small>POINTS</small><strong id="points">0</strong></div>
+  </section>
+  <div class="status" id="status">READY TO PLAY</div>
+  <div class="field"><canvas id="field" width="800" height="480" aria-label="Football field game"></canvas></div>
+  <div id="notice" role="status">Press Start Game. Avoid the red defenders!</div>
+  <div class="actions"><button id="start">START GAME</button><button id="reset" class="secondary">NEW GAME</button></div>
+  <section class="controls">
+    <strong>CONTROLS</strong>
+    <div class="pad">
+      <span></span><button data-key="up" aria-label="Move up">▲</button><span></span>
+      <button data-key="left" aria-label="Move left">◀</button><button data-key="down" aria-label="Move down">▼</button><button data-key="right" aria-label="Move right">▶</button>
+    </div>
+    <p class="hint">Computer: Arrow keys or W A S D · Touchscreen: use the buttons</p>
+    <p class="hint">Each touchdown = 6 points. The player is slower and the defense is faster!</p>
+  </section>
+</main>
+<footer>Games.com • Original free arcade football game • Not affiliated with EA Sports or the NFL</footer>
+<script>
+(() => {
+ const $=id=>document.getElementById(id),canvas=$('field'),ctx=canvas.getContext('2d');
+ let player,defenders,points,td,time,running,keys={},last=0,raf,invincible=0;
+ function spawn(){
+   player={x:400,y:405,r:15};
+   defenders=[];
+   for(let i=0;i<9;i++) defenders.push({x:65+(i%5)*165,y:75+Math.floor(i/5)*125,r:17,speed:175+Math.random()*45});
+   invincible=1.2;
+ }
+ function draw(){
+   ctx.clearRect(0,0,800,480);ctx.fillStyle='#176b36';ctx.fillRect(0,0,800,480);
+   for(let y=0;y<480;y+=96){ctx.fillStyle='rgba(255,255,255,.055)';ctx.fillRect(0,y,800,96)}
+   ctx.strokeStyle='rgba(255,255,255,.7)';ctx.lineWidth=3;
+   for(let x=0;x<=800;x+=80){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,480);ctx.stroke()}
+   ctx.fillStyle='#bd903c';ctx.fillRect(0,0,800,48);ctx.fillRect(0,432,800,48);
+   ctx.fillStyle='white';ctx.font='bold 22px Arial';ctx.textAlign='center';ctx.fillText('TOUCHDOWN ZONE',400,31);ctx.fillText('YOUR END ZONE',400,461);
+   ctx.strokeStyle='rgba(255,255,255,.7)';ctx.setLineDash([8,9]);ctx.beginPath();ctx.moveTo(0,240);ctx.lineTo(800,240);ctx.stroke();ctx.setLineDash([]);
+   defenders.forEach(d=>{ctx.fillStyle='#dc3030';ctx.beginPath();ctx.arc(d.x,d.y,d.r,0,Math.PI*2);ctx.fill();ctx.fillStyle='white';ctx.font='bold 12px Arial';ctx.fillText('D',d.x,d.y+4)});
+   ctx.fillStyle='#facc15';ctx.beginPath();ctx.arc(player.x,player.y,player.r,0,Math.PI*2);ctx.fill();ctx.fillStyle='#111';ctx.font='bold 12px Arial';ctx.fillText('7',player.x,player.y+4);
+   ctx.fillStyle='#7c3516';ctx.beginPath();ctx.ellipse(player.x+15,player.y-9,9,5,-.5,0,Math.PI*2);ctx.fill();
+   if(invincible>0){ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(player.x,player.y,23,0,Math.PI*2);ctx.stroke()}
+   ctx.fillStyle='white';ctx.textAlign='left';ctx.font='bold 16px Arial';ctx.fillText('TIME: '+Math.ceil(time),14,24);
+ }
+ function updateScore(){ $('td').textContent=td;$('points').textContent=points;$('clock').textContent=Math.ceil(time); }
+ function end(){running=false;keys={};$('status').textContent='GAME OVER';$('notice').textContent='FINAL SCORE: '+points+' POINTS · '+td+' TOUCHDOWNS. Choose New Game to play again.';draw()}
+ function touchdown(){td++;points+=6;updateScore();$('notice').textContent='TOUCHDOWN! +6 POINTS!';spawn();draw()}
+ function loop(ts){
+   if(!running)return;const dt=Math.min((ts-last)/1000||.016,.04);last=ts;
+   time=Math.max(0,time-dt);invincible=Math.max(0,invincible-dt);$('clock').textContent=Math.ceil(time);
+   let dx=0,dy=0;if(keys.left)dx--;if(keys.right)dx++;if(keys.up)dy--;if(keys.down)dy++;
+   const len=Math.hypot(dx,dy)||1;player.x+=dx/len*155*dt;player.y+=dy/len*155*dt;
+   player.x=Math.max(18,Math.min(782,player.x));player.y=Math.max(53,Math.min(425,player.y));
+   for(const d of defenders){let vx=player.x-d.x,vy=player.y-d.y,dist=Math.hypot(vx,vy)||1;d.x+=vx/dist*(d.speed+td*12)*dt;d.y+=vy/dist*(d.speed+td*12)*dt;if(invincible<=0&&dist<player.r+d.r){end();return}}
+   if(player.y<60)touchdown();draw();if(time<=0){end();return}raf=requestAnimationFrame(loop);
+ }
+ function reset(){cancelAnimationFrame(raf);points=0;td=0;time=60;running=false;keys={};spawn();updateScore();$('status').textContent='READY TO PLAY';$('notice').textContent='Press Start Game. Avoid the red defenders!';draw()}
+ function start(){if(running)return;running=true;last=0;$('status').textContent='PLAYING';$('notice').textContent='The defense is coming! Get to the end zone!';raf=requestAnimationFrame(loop)}
+ const map={ArrowUp:'up',w:'up',ArrowDown:'down',s:'down',ArrowLeft:'left',a:'left',ArrowRight:'right',d:'right'};
+ window.addEventListener('keydown',e=>{if(map[e.key]){e.preventDefault();keys[map[e.key]]=true}});
+ window.addEventListener('keyup',e=>{if(map[e.key])keys[map[e.key]]=false});
+ document.querySelectorAll('[data-key]').forEach(b=>{const k=b.dataset.key;b.addEventListener('pointerdown',e=>{e.preventDefault();keys[k]=true});['pointerup','pointercancel','pointerleave'].forEach(ev=>b.addEventListener(ev,()=>keys[k]=false))});
+ $('start').addEventListener('click',start);$('reset').addEventListener('click',reset);reset();
+})();
+</script>
+</body>
+</html>
