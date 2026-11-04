@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Games.com Football 27</title>
+<style>
+:root{--gold:#ffcc45;--red:#9b1c31;--navy:#101a2c}
+*{box-sizing:border-box}body{margin:0;background:#07101d;color:#fff;font-family:Arial,Helvetica,sans-serif;overflow:hidden}
+#game{position:fixed;inset:0}canvas{display:block}
+#topbar{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:14px 22px;background:linear-gradient(#050a13dd,transparent);pointer-events:none}
+.brand{font-weight:1000;letter-spacing:1.5px;font-size:22px;text-shadow:0 2px 8px #000}.brand span{color:var(--gold)}
+#scoreboard{position:fixed;top:14px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:16px;padding:10px 20px;background:#08111eeF;border:1px solid #ffffff35;border-radius:9px;box-shadow:0 5px 25px #0008;min-width:340px;justify-content:center}
+.team{font-weight:900;letter-spacing:1px}.team.home{color:#e7b4bd}.team.away{color:#b7c9ef}.score{font-size:29px;font-weight:1000}.clock{text-align:center;font-size:12px;color:#d5dce8;line-height:1.4}.clock b{font-size:16px;color:white}
+#controls{position:fixed;left:18px;bottom:18px;background:#07101ddd;border:1px solid #ffffff30;border-radius:10px;padding:12px 15px;font-size:12px;line-height:1.8;color:#e7edf7}
+#status{position:fixed;right:18px;bottom:18px;background:#07101ddd;border:1px solid #ffffff30;border-radius:10px;padding:12px 15px;font-size:13px;min-width:180px;text-align:right}
+#start{position:fixed;inset:0;display:grid;place-items:center;background:linear-gradient(120deg,#06101ddd,#06101d88),radial-gradient(ellipse at center,#243e5a,#07101d);z-index:5}
+.panel{width:min(560px,92vw);padding:34px;background:#0a1525f2;border:1px solid #ffffff35;border-radius:18px;box-shadow:0 25px 90px #000b;text-align:center}
+.panel h1{font-size:clamp(32px,6vw,58px);line-height:.95;margin:0 0 12px;font-weight:1000;font-style:italic;letter-spacing:-2px}.panel h1 span{color:var(--gold)}
+.panel p{color:#c4cedd;line-height:1.5}.choices{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:22px 0}
+button{border:0;border-radius:7px;padding:13px 20px;font-weight:900;cursor:pointer;background:var(--gold);color:#161616;font-size:14px}
+button.secondary{background:#24354d;color:white;border:1px solid #ffffff30}
+.small{font-size:11px;color:#91a1b8}
+#playcall{position:fixed;top:92px;left:50%;transform:translateX(-50%);padding:8px 14px;border-radius:5px;background:#07101dcc;font-size:13px;font-weight:800;letter-spacing:.5px;pointer-events:none}
+#touch{display:none;position:fixed;bottom:18px;right:18px;gap:8px}
+#touch button{padding:14px;background:#101e32dd;color:white;border:1px solid #ffffff44}
+@media(max-width:700px){#scoreboard{top:60px;min-width:290px;gap:10px;padding:8px 12px}.brand{font-size:17px}#controls{font-size:10px;bottom:12px;left:10px}#status{bottom:12px;right:10px;min-width:130px;font-size:11px}#playcall{top:115px}}
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div id="topbar"><div class="brand">GAMES<span>.COM</span> <small style="font-size:10px;color:#9eacc0"> • FOOTBALL 27</small></div><div style="font-size:11px;color:#c6d0df;font-weight:bold">EXHIBITION • 3D GAME</div></div>
+<div id="scoreboard"><div class="team home">WASHINGTON</div><div class="score" id="homeScore">0</div><div class="clock"><b id="time">5:00</b><br><span id="quarter">1ST QUARTER</span></div><div class="score" id="awayScore">0</div><div class="team away">VISITORS</div></div>
+<div id="playcall">KICKOFF • READY</div>
+<div id="controls"> <b>CONTROLS</b><br>WASD / ARROWS — Move runner<br>SPACE — Pass / snap<br>E — Switch player<br>SHIFT — Sprint<br>R — Restart play</div>
+<div id="status"><b>DOWN & DISTANCE</b><br><span id="down">1ST & 10</span><br><span id="yardline">OWN 25 YD LINE</span></div>
+<div id="start"><div class="panel"><h1>FOOTBALL <span>27</span></h1><p>A bigger 3D stadium experience. Run the offense, pass to teammates, avoid defenders, and score touchdowns.</p><div class="choices"><button id="play">KICK OFF</button><button class="secondary" id="how">HOW TO PLAY</button></div><p class="small">Original fan-made football game • Not affiliated with the NFL or any team</p></div></div>
+<div id="touch"><button id="passBtn">PASS</button><button id="switchBtn">SWITCH</button></div>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+<script type="module">
+import * as THREE from 'three';
+const mount=document.getElementById('game');
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x8bb5d8);scene.fog=new THREE.Fog(0x8bb5d8,95,220);
+const camera=new THREE.PerspectiveCamera(48,innerWidth/innerHeight,.1,400);
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.1;mount.appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xdceeff,0x31452f,2));
+const sun=new THREE.DirectionalLight(0xfff2d9,2.7);sun.position.set(-45,75,35);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-85;sun.shadow.camera.right=85;sun.shadow.camera.top=85;sun.shadow.camera.bottom=-85;scene.add(sun);
+const mat=(c,r=.8,m=0)=>new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:m});
+const turf=mat(0x176b38),line=mat(0xf5f3e9),dark=mat(0x121923),seat1=mat(0x263a52),seat2=mat(0x314b68),gold=mat(0xf0bd45),red=mat(0x8c1c32),white=mat(0xf4f2eb),blue=mat(0x294a78);
+function box(w,h,d,material,x,y,z,parent=scene){const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;parent.add(o);return o}
+function fieldLine(x,z,w,d){box(w,.035,d,line,x,.04,z)}
+// Field and markings
+box(120,.5,53,turf,0,0,0);
+
+for(let x=-55;x<=55;x+=5){fieldLine(x,.27,.12,53);if(x%10===0){for(let z of [-22,22])fieldLine(x,z,1.2,.12)}}
+for(let z of [-26.5,26.5])fieldLine(0,z,120,.25);
+for(let x of [-60,60]){fieldLine(x,0,.3,53);box(10,.52,53, x<0?red:blue,x<0?-65:65,0,0)}
+// Yard numbers, hash marks
+const canvas=document.createElement('canvas');canvas.width=256;canvas.height=128;const ctx=canvas.getContext('2d');ctx.fillStyle='#f6f2e8';ctx.font='bold 72px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('50',128,64);
+const numberTex=new THREE.CanvasTexture(canvas);
+for(let x=-45;x<=45;x+=10){for(let z of [-17,17]){const p=new THREE.Mesh(new THREE.PlaneGeometry(4,2),new THREE.MeshBasicMaterial({map:numberTex,transparent:true,side:THREE.DoubleSide}));p.rotation.x=-Math.PI/2;p.position.set(x,.31,z);scene.add(p)}}
+for(let x=-55;x<=55;x+=1){for(let z of [-19,19])fieldLine(x,z,.08,.65)}
+// Stadium bowl
+for(let tier=0;tier<5;tier++){
+ const y=2+tier*2.15, radius=42+tier*4;
+ const stand=new THREE.Mesh(new THREE.BoxGeometry(138,y+4,9),tier%2?seat2:seat1);stand.position.set(0,y/2,-35-tier*1.5);stand.receiveShadow=true;scene.add(stand);
+ const stand2=stand.clone();stand2.position.z=35+tier*1.5;scene.add(stand2);
+ const side=new THREE.Mesh(new THREE.BoxGeometry(9,y+4,75+tier*3),tier%2?seat1:seat2);side.position.set(-67-tier*1.5,y/2,0);scene.add(side);
+ const side2=side.clone();side2.position.x=67+tier*1.5;scene.add(side2);
+}
+// Crowd dots
+const crowdMats=[mat(0xd8dce2),mat(0x9c2b42),mat(0x253e63),mat(0xe2b84e),mat(0x25332e)];
+for(let side=0;side<2;side++)for(let row=0;row<5;row++)for(let i=0;i<170;i++){
+ const x=(Math.random()-.5)*126,z=(side?1:-1)*(29+row*1.7),y=4+row*2.05+(Math.random()-.5)*.6;
+ const dot=new THREE.Mesh(new THREE.BoxGeometry(.42,.55,.35),crowdMats[Math.floor(Math.random()*crowdMats.length)]);dot.position.set(x,y,z);scene.add(dot);
+}
+// Light towers and scoreboard
+for(let x of [-72,72])for(let z of [-38,38]){box(1,27,1,dark,x,14,z);box(10,.5,2,white,x,28,z)}
+box(23,8,1,dark,0,20,-48);box(21,6,.25,mat(0x172b42),0,20,-47.4);
+const boardCanvas=document.createElement('canvas');boardCanvas.width=512;boardCanvas.height=128;const bc=boardCanvas.getContext('2d');bc.fillStyle='#0c1727';bc.fillRect(0,0,512,128);bc.fillStyle='#f6c94c';bc.font='bold 50px Arial';bc.textAlign='center';bc.fillText('GAMES.COM • FOOTBALL 27',256,78);
+const board=new THREE.Mesh(new THREE.PlaneGeometry(20,5),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(boardCanvas)}));board.position.set(0,20,-47.2);scene.add(board);
+// Players with layered equipment
+function makePlayer(team,number){
+ const g=new THREE.Group();const isHome=team==='home';
+ const jersey=isHome?red:blue, pants=isHome?mat(0xf0eee6):mat(0xd8dce4), helmet=isHome?mat(0xeee9df,.35,.25):mat(0x16263c,.3,.25);
+ const hips=new THREE.Group();hips.position.y=1.05;g.add(hips);
+ const body=new THREE.Mesh(new THREE.CapsuleGeometry(.55,.95,5,10),jersey);body.position.y=.5;body.castShadow=true;hips.add(body);
+ const chest=new THREE.Mesh(new THREE.BoxGeometry(.9,.7,.52),jersey);chest.position.set(0,.58,0);hips.add(chest);
+ const headGroup=new THREE.Group();headGroup.position.set(0,1.35,0);hips.add(headGroup);
+ const head=new THREE.Mesh(new THREE.SphereGeometry(.39,16,12),mat(0xb9825e));head.position.y=.03;headGroup.add(head);
+ const helm=new THREE.Mesh(new THREE.SphereGeometry(.47,16,12,0,Math.PI*2,0,Math.PI*.65),helmet);helm.position.y=.17;helm.scale.set(1,1,1.08);headGroup.add(helm);
+ const facemask=new THREE.Mesh(new THREE.TorusGeometry(.34,.045,6,16,Math.PI),mat(0xc8d0d7,.25,.65));facemask.position.set(0,.02,.38);facemask.rotation.x=Math.PI/2;headGroup.add(facemask);
+ const arms=[],legs=[];
+ for(let s of [-1,1]){
+   const shoulder=new THREE.Group();shoulder.position.set(s*.55,.92,0);hips.add(shoulder);
+   const arm=new THREE.Mesh(new THREE.CapsuleGeometry(.17,.68,4,8),jersey);arm.position.set(s*.1,-.3,0);shoulder.add(arm);
+   const glove=new THREE.Mesh(new THREE.SphereGeometry(.16,10,8),dark);glove.position.set(s*.1,-.68,.03);shoulder.add(glove);arms.push(shoulder);
+   const legPivot=new THREE.Group();legPivot.position.set(s*.25,.05,0);hips.add(legPivot);
+   const leg=new THREE.Mesh(new THREE.CapsuleGeometry(.22,.65,4,8),pants);leg.position.y=-.34;legPivot.add(leg);
+   const shoe=new THREE.Mesh(new THREE.BoxGeometry(.32,.18,.55),dark);shoe.position.set(0,-.7,.15);legPivot.add(shoe);legs.push(legPivot);
+ }
+ const ncan=document.createElement('canvas');ncan.width=128;ncan.height=128;const nc=ncan.getContext('2d');nc.fillStyle='#fff';nc.font='bold 82px Arial';nc.textAlign='center';nc.textBaseline='middle';nc.fillText(number,64,68);
+ const num=new THREE.Mesh(new THREE.PlaneGeometry(.45,.45),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(ncan),transparent:true}));num.position.set(0,.58,.29);hips.add(num);
+ g.userData={team,number,velocity:new THREE.Vector3(),arms,legs,hips,headGroup,animTime:Math.random()*6.28,runAmount:0,previousPosition:new THREE.Vector3(),target:null};
+ scene.add(g);return g;
+}
+const offense=[makePlayer('home','8'),makePlayer('home','12'),makePlayer('home','21'),makePlayer('home','88'),makePlayer('home','72')];
+const defense=[makePlayer('away','54'),makePlayer('away','21'),makePlayer('away','33'),makePlayer('away','90'),makePlayer('away','4')];
+offense[0].position.set(-20,0,0);offense[1].position.set(-25,0,-9);offense[2].position.set(-25,0,9);offense[3].position.set(-31,0,-14);offense[4].position.set(-31,0,14);
+defense.forEach((p,i)=>p.position.set(-2+i*3,0,(i-2)*8));
+[...offense,...defense].forEach(p=>p.userData.previousPosition.copy(p.position));
+const ball=new THREE.Group();const football=new THREE.Mesh(new THREE.SphereGeometry(.35,16,10),mat(0x8b4b22));football.scale.set(1,.58,.62);ball.add(football);const seam=new THREE.Mesh(new THREE.BoxGeometry(.03,.02,.4),white);seam.position.y=.2;ball.add(seam);scene.add(ball);ball.position.set(-19,2,0);
+let active=0,started=false,hasBall=true,scoreHome=0,scoreAway=0,seconds=300,down=1,quarter=1,playOver=false,playClock=0;
+const keys={};addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;if(e.code==='Space'){e.preventDefault();passBall()}if(e.key.toLowerCase()==='e')switchPlayer();if(e.key.toLowerCase()==='r')resetPlay()});addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+function switchPlayer(){active=(active+1)%offense.length;document.getElementById('playcall').textContent='PLAYER '+offense[active].userData.number+' SELECTED'}
+function passBall(){if(!started||!hasBall||playOver)return;const receiver=offense[(active+1)%offense.length];ball.position.copy(offense[active].position).add(new THREE.Vector3(.25,2.35,0));ball.userData.target=receiver;ball.userData.flight=0;ball.userData.start=ball.position.clone();ball.userData.duration=.72+Math.min(.55,ball.position.distanceTo(receiver.position)*.012);offense[active].userData.throwTime=.45;hasBall=false;document.getElementById('playcall').textContent='PASS IN THE AIR!'}
+function resetPlay(){offense.forEach((p,i)=>p.position.set(-20-(i>0?5:0),0,(i-2)*7));defense.forEach((p,i)=>p.position.set(-2+i*3,0,(i-2)*8));
+[...offense,...defense].forEach(p=>p.userData.previousPosition.copy(p.position));active=0;hasBall=true;playOver=false;ball.position.set(-19,2,0);document.getElementById('playcall').textContent='READY FOR THE SNAP'}
+function startGame(){started=true;document.getElementById('start').style.display='none';document.getElementById('playcall').textContent='PLAY BALL!'}
+document.getElementById('play').onclick=startGame;document.getElementById('how').onclick=()=>alert('Move with WASD or arrow keys. Hold SHIFT to sprint. Press SPACE to pass to a teammate. Press E to switch the controlled player. Avoid defenders and run into the end zone!');
+document.getElementById('passBtn').onclick=passBall;document.getElementById('switchBtn').onclick=switchPlayer;
+let last=performance.now(),clockAccumulator=0;
+function update(dt){
+ const allPlayers=[...offense,...defense];
+ // Smooth, procedural run cycles: legs stride, arms counter-swing, torso and helmet react.
+ for(const p of allPlayers){
+   const ud=p.userData;ud.animTime+=dt;
+   const moved=p.position.distanceTo(ud.previousPosition)/Math.max(dt,.001);
+   ud.runAmount=THREE.MathUtils.damp(ud.runAmount,Math.min(1,moved/7),8,dt);
+   const phase=ud.animTime*(8+ud.runAmount*7);
+   const stride=Math.sin(phase)*.72*ud.runAmount;
+   ud.legs[0].rotation.x=stride;ud.legs[1].rotation.x=-stride;
+   ud.arms[0].rotation.x=-stride*.82;ud.arms[1].rotation.x=stride*.82;
+   ud.arms[0].rotation.z=-.12;ud.arms[1].rotation.z=.12;
+   ud.hips.position.y=1.05+Math.abs(Math.sin(phase))* .10*ud.runAmount;
+   ud.hips.rotation.z=THREE.MathUtils.damp(ud.hips.rotation.z,-ud.velocity.z*.025,7,dt);
+   ud.headGroup.rotation.x=Math.sin(ud.animTime*2.1)*.025;
+   if(ud.throwTime>0){ud.throwTime-=dt;ud.arms[1].rotation.x=-1.8;ud.arms[1].rotation.z=-.6;}
+   ud.previousPosition.copy(p.position);
+ }
+ if(started&&!playOver){
+  const runner=offense[active],ud=runner.userData;
+  let dx=0,dz=0;
+  if(keys['w']||keys['arrowup'])dx+=1;if(keys['s']||keys['arrowdown'])dx-=1;
+  if(keys['a']||keys['arrowleft'])dz+=1;if(keys['d']||keys['arrowright'])dz-=1;
+  const len=Math.hypot(dx,dz)||1, topSpeed=keys['shift']?13.5:8.3;
+  const desiredV=new THREE.Vector3(dx/len*topSpeed,0,dz/len*topSpeed);
+  ud.velocity.lerp(desiredV,1-Math.exp(-9*dt));
+  runner.position.addScaledVector(ud.velocity,dt);
+  if(!dx&&!dz)ud.velocity.multiplyScalar(Math.exp(-5*dt));
+  runner.position.x=Math.max(-57,Math.min(57,runner.position.x));runner.position.z=Math.max(-23,Math.min(23,runner.position.z));
+  if(ud.velocity.length()>.25)runner.rotation.y=Math.atan2(ud.velocity.z,ud.velocity.x);
+  if(hasBall)ball.position.set(runner.position.x+.5,1.75+Math.sin(ud.animTime*15)*.06,runner.position.z);
+  // Defenders accelerate toward the ball carrier and steer around one another.
+  defense.forEach((p,i)=>{
+    const target=hasBall?runner.position:offense[0].position;
+    const v=target.clone().sub(p.position);const dist=v.length();
+    if(dist>.9){
+      v.normalize();const desired=v.multiplyScalar(5.1+i*.18);
+      p.userData.velocity.lerp(desired,1-Math.exp(-4.5*dt));
+      p.position.addScaledVector(p.userData.velocity,dt);
+      p.rotation.y=Math.atan2(p.userData.velocity.z,p.userData.velocity.x);
+    }else p.userData.velocity.multiplyScalar(.8);
+    if(hasBall&&dist<1.25){
+      playOver=true;runner.userData.hips.rotation.z=.35;
+      document.getElementById('playcall').textContent='TACKLED! PRESS R FOR NEXT PLAY';
+    }
+  });
+  // Ball follows a smooth parabolic arc, with end-over-end spin.
+  if(!hasBall&&ball.userData.target){
+    ball.userData.flight+=dt;
+    const t=Math.min(1,ball.userData.flight/(ball.userData.duration||1));
+    const target=ball.userData.target.position.clone().add(new THREE.Vector3(0,1.7,0));
+    const start=ball.userData.start;
+    ball.position.lerpVectors(start,target,t);
+    ball.position.y+=Math.sin(t*Math.PI)*Math.max(2.4,start.distanceTo(target)*.12);
+    ball.rotation.z+=dt*13;ball.rotation.x+=dt*7;
+    if(t>=1){
+      active=offense.indexOf(ball.userData.target);hasBall=true;ball.userData.target=null;
+      ball.userData.flight=0;offense[active].userData.catchTime=.35;
+      document.getElementById('playcall').textContent='CATCH! KEEP RUNNING';
+    }
+  }
+  if(runner.position.x>55){scoreHome+=7;document.getElementById('homeScore').textContent=scoreHome;playOver=true;document.getElementById('playcall').textContent='TOUCHDOWN WASHINGTON! +7 • PRESS R'}
+  clockAccumulator+=dt;if(clockAccumulator>=1){seconds--;clockAccumulator=0;if(seconds<0){seconds=300;quarter++;document.getElementById('quarter').textContent=quarter+'TH QUARTER'}document.getElementById('time').textContent=Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0')}
+ }
+ // Ball-carrier pose and camera easing.
+ if(hasBall){const carrier=offense[active];carrier.userData.arms[1].rotation.x=-1.1;carrier.userData.arms[1].rotation.z=-.45;}
+ const focus=offense[active].position;
+ const desired=new THREE.Vector3(focus.x-17,17,focus.z+23);
+ camera.position.lerp(desired,1-Math.exp(-3.5*dt));camera.lookAt(focus.x+7,0,focus.z);
+}
+function animate(now){requestAnimationFrame(animate);const dt=Math.min((now-last)/1000,.04);last=now;update(dt);renderer.render(scene,camera)}
+animate(performance.now());
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+if('ontouchstart' in window)document.getElementById('touch').style.display='flex';
+</script>
+</body></html>
